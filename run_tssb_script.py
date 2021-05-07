@@ -14,7 +14,7 @@ TIMEOUT = 60
 os.chdir(dirname(TSSB_SCRIPT))
 app = Application(backend="win32").start('C:\\tssb\\tssb.exe')
 
-print(f'Started: {app.windows()[0].children()}')
+print(f'[DEBUG] Started: {app.windows()} / {app.windows()[0].children()}')
 
 timer = TIMEOUT
 while timer:
@@ -30,13 +30,13 @@ else:
 # Send enter to accept the 'Disclaimer of Liability' form
 send_keys('{ENTER}')
 
-print(f'Accepted disclaimer: {app.windows()[0].children()}')
+print(f'[DEBUG] Accepted disclaimer: {app.windows()} / {app.windows()[0].children()}')
 
 # Wait for main window to activate
 timer = TIMEOUT
 while timer:
     try:
-        if app.windows(title_re = 'TSSB.*'):
+        if app.windows(title_re = 'TSSB.*') and len(app.windows()[0].children()) == 1:
             break
     except:
         time.sleep(SLEEP_STEP)
@@ -44,13 +44,13 @@ while timer:
 else:
     raise ValueError("Error accepting disclaimer")
 
-print(f'Opening script: {app.windows()[0].children()}')
+print(f'[DEBUG] Opening script: {app.windows()} / {app.windows()[0].children()}')
 
 # Open 'File -> Script file to read'
 # NOTE: with wine menu select is not working, hence the keystrokes
 send_keys('{VK_MENU}{ENTER}{ENTER}')
 
-print(f'Open in progress: {app.windows()[0].children()}')
+print(f'[DEBUG] Open in progress: {app.windows()} / {app.windows()[0].children()}')
 
 timer = TIMEOUT
 while timer:
@@ -63,18 +63,20 @@ while timer:
 else:
     raise ValueError("Script file to read dialog did not appear")
 
-print(f"Starting script: {TSSB_SCRIPT}")
+print(f"[DEBUG] Starting script `{TSSB_SCRIPT}`: {app.windows()} / {app.windows()[0].children()}")
 send_keys(TSSB_SCRIPT + '{ENTER}')
 
 # Wait for processing to start
-while len(app.windows()[0].children()) == 1:
+while len(app.windows(title=u'Script file to read')) > 0:
     time.sleep(SLEEP_STEP)
 
 # In case of failure a new dialog comes up with okay button.
 # Hence finding ButtonWrapper in the children shows failure.
 error_dialog_ok_buttons = [e for e in app.windows()[0].children() if 'ButtonWrapper' in str(type(e))]
 if error_dialog_ok_buttons:
-    raise ValueError(f'Error while processing: {app.windows()[0].children()}')
+    raise ValueError(f'Error while processing: {app.windows()} / {app.windows()[0].children()}')
+
+print(f"[DEBUG] Waiting to finish: {app.windows()} / {app.windows()[0].children()}")
 
 # Wait for processing to finish
 while len(app.windows()[0].children()) != 1:
