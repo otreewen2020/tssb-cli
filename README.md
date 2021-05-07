@@ -73,7 +73,7 @@ Given that python installer requires X/UI running, the installation process is d
 
   7. Install vim
      ```
-     apt install --no-install-recommends -y vim
+     apt install --no-install-recommends -y vim-tiny
      ```
 
   8. Snapshot and upload image (from host):
