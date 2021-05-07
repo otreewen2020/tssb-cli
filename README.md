@@ -39,7 +39,7 @@ Given that python installer requires X/UI running, majority of the installation 
      wine /root/.wine/drive_c/Python38/python.exe -m pip install PyWinAuto==0.6.8
      ```
 
-     Given that the current wine version (5.0.1) does not include UIAutomation.dll the following manual [patch](https://github.com/robertschulze/pywinauto/pull/1/files) should be applied to PyWinAuto:
+     Given that the current wine version (6.7) does not include UIAutomation.dll the following manual [patch](https://github.com/robertschulze/pywinauto/pull/1/files) should be applied to PyWinAuto:
      ```
      wget -O /root/.wine/drive_c/Python38/Lib/site-packages/pywinauto/sysinfo.py https://raw.githubusercontent.com/robertschulze/pywinauto/add4e852d4f34093e6f3f4ba780c5d718057a1e6/pywinauto/sysinfo.py
      ```
