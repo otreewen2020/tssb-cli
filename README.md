@@ -1,7 +1,7 @@
 # tssb-cli
 Welcome to hell: run TSSB from CLI, using WINE, Docker and PyWinAuto
 
-## Preparing base docker image:
+## Tutorial
 Given that python installer requires X/UI running, majority of the installation process is done manually:
   1. Create wine-docker base container:
      ```
