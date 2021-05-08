@@ -87,7 +87,7 @@ print(f"[DEBUG] Waiting to finish: {app.windows()} / {app.windows()[0].children(
 
 # Wait for processing to finish
 while True:
-    print(f"[DEBUG] {app.windows()} / {app.windows()[0].children()}")
+    # print(f"[DEBUG] {app.windows()} / {app.windows()[0].children()}")
     if any(MARKER_TEXT in str(e) for e in app.windows()[0].children()):
         break
 
