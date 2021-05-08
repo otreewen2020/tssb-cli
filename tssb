@@ -2,15 +2,31 @@
 
 set -eEuo pipefail
 
-script=$(realpath ${1})
-script_dir=$(dirname ${script})
-
+NOW=$(date +%y%m%d_%H%M)
 IMG=registry.kelly.direct/tssb-cli:latest
 DATA_DIR=/mnt/wd6/tssb-daily-csvs
+
+script=$(realpath ${1})
+script_dir=$(dirname ${script})
+result_file=${script}.result.${NOW}
+
+if [ ! -f "${script}" ]; then
+  echo "Error: ${script} not found"
+  exit 1
+fi
+
+rm ${script_dir}/AUDIT.LOG
 
 docker run \
     -it \
     --rm \
+    --name tssb \
     -v ${DATA_DIR}:/root/.wine/drive_c/tssb-data/:ro \
     -v ${script_dir}:/root/.wine/drive_c/tssb-scripts/ \
     ${IMG} c:\\tssb-scripts\\$(basename ${script})
+
+echo "--->tssb script<---" >> ${result_file}
+cat ${script} >> ${result_file}
+echo "---<tssb script>---" >> ${result_file} 
+cat ${script_dir}/AUDIT.LOG >> ${result_file}
+rm ${script_dir}/AUDIT.LOG
