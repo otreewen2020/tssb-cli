@@ -88,12 +88,14 @@ print(f"[DEBUG] Waiting to finish: {app.windows()} / {app.windows()[0].children(
 # Wait for processing to finish
 while True:
     # print(f"[DEBUG] {app.windows()} / {app.windows()[0].children()}")
-    if any(MARKER_TEXT in str(e) for e in app.windows()[0].children()):
+    dialogs = app.windows()[0].children()
+    if any(MARKER_TEXT in str(e) for e in dialogs):
+        print("Success!")
         break
 
     # In case of failure a new dialog comes up with okay button.
     # Hence finding ButtonWrapper in the children shows failure.
-    error_dialog_ok_buttons = [e for e in app.windows()[0].children() if 'ButtonWrapper' in str(type(e))]
+    error_dialog_ok_buttons = [e for e in dialogs if 'ButtonWrapper' in str(type(e))]
     if error_dialog_ok_buttons:
         raise ValueError(f'Error while processing: {app.windows()} / {app.windows()[0].children()}')
 

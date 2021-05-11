@@ -15,7 +15,7 @@ if [ ! -f "${script}" ]; then
   exit 1
 fi
 
-rm ${script_dir}/AUDIT.LOG
+rm -f ${script_dir}/AUDIT.LOG
 
 docker run \
     -it \
@@ -29,4 +29,3 @@ echo "--->tssb script<---" >> ${result_file}
 cat ${script} >> ${result_file}
 echo "---<tssb script>---" >> ${result_file} 
 cat ${script_dir}/AUDIT.LOG >> ${result_file}
-rm ${script_dir}/AUDIT.LOG
