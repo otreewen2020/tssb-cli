@@ -13,6 +13,7 @@ import sys
 import os
 import time
 from os.path import dirname, basename
+from subprocess import run
 
 from pywinauto.application import Application
 from pywinauto.keyboard import send_keys

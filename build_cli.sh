@@ -3,8 +3,7 @@
 set -eEuo pipefail
 
 if [ -e tssb ]; then
-    echo './tssb already exists!'
-    exit 1
+  rm -f tssb
 fi
 
 INTERPRETER=$(which python3)

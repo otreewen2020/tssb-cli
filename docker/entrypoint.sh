@@ -2,8 +2,10 @@
 
 set -eEuo pipefail
 
+env | sort
+
 set +u
-XVFB=xvfb-run
+XVFB=/xvfb-run-with-screenshots.sh
 if [ ! -z "${NO_XVFB}" ]; then
   XVFB=""
 fi
