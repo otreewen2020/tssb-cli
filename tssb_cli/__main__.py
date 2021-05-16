@@ -3,11 +3,13 @@ Usage:
   tssb <script> <job_name> <description> [options]
 
 Options:
-  -d  --debug       Set log level to DEBUG
-  --data-dir=DIR    Sets the data dir to be mounted as c:\\tssb-data [default: /mnt/wd6/tssb-daily-csvs]
-  --docker-img=IMG  Sets the docker image to use [default: registry.kelly.direct/tssb-cli:latest]
+  -d  --debug                 Set log level to DEBUG
+  --data-dir=DIR              Sets the data dir to be mounted as c:\\tssb-data [default: /mnt/wd6/tssb-daily-csvs]
+  --docker-img=IMG            Sets the docker image to use [default: registry.kelly.direct/tssb-cli:latest]
+  --x11=DISPLAY               Use the defined display as output [default: off]
+  --parallel-by-var=PROC_CNT  Run the specified script in parallel by dividing the job based on variables [default: off]
 """
-from typing import List, Set
+from typing import List, Set, Optional
 from os import makedirs
 from os.path import basename, abspath
 from shutil import copy
@@ -57,15 +59,26 @@ def prepare_workdir(job_name: str, script_path: str, dependencies: Set[str]) -> 
     return workdir_path
 
 
-def run(workdir_path: str, script_filename: str, data_dir: str, docker_img: str, job_name: str, description: str):
+def run(workdir_path: str, script_filename: str, data_dir: str, docker_img: str, job_name: str, description: str,
+        x11_display: Optional[str]):
     log_filename = f'{workdir_path}/tssb-cli.log'
     shell_run(f'echo "{job_name}: {description}\nStart: $(date)" >> {log_filename}')
+    x11_args = ''
+    if x11_display:
+        x11_args = (
+            f'-e DISPLAY={x11_display} '
+            f'-e NO_XVFB=true '
+            f'-v $HOME/.Xauthority:/root/.Xauthority:ro '
+            f'-v /tmp/.X11-unix:/tmp/.X11-unix:ro '
+        )
     cmd = (
         f'(time docker run '
         f'  -it --rm  '
+        f'  --network=host '
+        f'  {x11_args} '
         f'  -v {abspath(data_dir)}:/root/.wine/drive_c/tssb-data:ro '
         f'  -v {abspath(workdir_path)}:/root/.wine/drive_c/tssb-workdir '
-        f'  {docker_img} c:\\\\tssb-workdir\\\\{script_filename} ) | tee -a {log_filename} 2>&1  | tr -d "\r"'
+        f'  {docker_img} c:\\\\tssb-workdir\\\\{script_filename} ) | tee -a {log_filename} 2>&1  '
     )
 
     log.info(f'Starting tssb: {cmd}')
@@ -81,6 +94,10 @@ def main():
     if opts['-d']:
         log.setLevel(logging.DEBUG)
 
+    x11_display = None
+    if opts['--x11'] != 'off':
+        x11_display = opts['--x11']
+
     script_path = opts['<script>']
 
     with open(script_path) as f:
@@ -93,7 +110,10 @@ def main():
 
     workdir_path = prepare_workdir(job_name, script_path, dependencies)
     script_filename = basename(script_path)
-    run(workdir_path, script_filename, opts['--data-dir'], opts['--docker-img'], job_name, opts['<description>'])
+    run(workdir_path, script_filename,
+        opts['--data-dir'], opts['--docker-img'],
+        job_name, opts['<description>'],
+        x11_display)
     log.info(f'TSSB Results: {workdir_path}')
 
 
