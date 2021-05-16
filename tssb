@@ -20,7 +20,6 @@ rm -f ${script_dir}/AUDIT.LOG
 docker run \
     -it \
     --rm \
-    --name tssb \
     -v ${DATA_DIR}:/root/.wine/drive_c/tssb-data/:ro \
     -v ${script_dir}:/root/.wine/drive_c/tssb-scripts/ \
     ${IMG} c:\\tssb-scripts\\$(basename ${script}) 2>&1 | tee ${script_dir}/tssb-cli.log
