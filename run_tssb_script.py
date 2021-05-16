@@ -1,106 +1,144 @@
+"""
+Usage:
+
+  run_tssb_script.py <script> [options]
+
+Options:
+  -h  --help    Help screen
+  -d  --debug   Sets log level to DEBUG
+"""
+
+import logging
 import sys
 import os
 import time
 from os.path import dirname, basename
-import pywinauto
+
 from pywinauto.application import Application
 from pywinauto.keyboard import send_keys
 
-TSSB_SCRIPT = sys.argv[1]
-TSSB_CLI_TEMP = "C:\\tssb-cli-temp"
+
+log = logging.getLogger(__name__)
+
+TSSB_CLI_TEMP = "C:\\t"
 
 SLEEP_STEP = 0.05
 TIMEOUT = 60
 
-os.chdir(dirname(TSSB_SCRIPT))
 
-# Copy over the script to \temp and add finish marker
-MARKER_TEXT="TSSB_CLI_END_MARKER"
-script_with_marker = f'{TSSB_CLI_TEMP}\\{basename(TSSB_SCRIPT)}'
-os.mkdir(TSSB_CLI_TEMP)
-with open(script_with_marker, 'w') as f_out:
-    with open(TSSB_SCRIPT, 'r') as f_in:
-        for line in f_in:
-            f_out.write(line)
-    f_out.write(f'\n\nREAD {MARKER_TEXT};\n')
-    
+def main(tssb_script):
+    os.chdir(dirname(tssb_script))
 
-app = Application(backend="win32").start('C:\\tssb\\tssb.exe')
+    # Copy over the script to \temp and add finish marker
+    MARKER_TEXT="TSSB_CLI_END_MARKER"
+    # Keeping the path short speeds up execution: we are sending in less keystrokes
+    script_with_marker = f'{TSSB_CLI_TEMP}\\s.scr'
+    os.mkdir(TSSB_CLI_TEMP)
+    with open(script_with_marker, 'w') as f_out:
+        with open(tssb_script, 'r') as f_in:
+            for line in f_in:
+                f_out.write(line)
+        f_out.write(f'\n\nREAD {MARKER_TEXT};\n')
 
-print(f'[DEBUG] Started: {app.windows()} / {app.windows()[0].children()}')
+    app = Application(backend="win32").start('C:\\tssb\\tssb.exe')
 
-timer = TIMEOUT
-while timer:
-    try:
-        if len(app.windows(title=u'Disclaimer of Liability')) > 0:
-            break
-    except:
+    log.info(f'Started TSSB')
+
+    timer = TIMEOUT
+    while timer:
+        try:
+            if len(app.windows(title=u'Disclaimer of Liability')) > 0:
+                break
+        except:
+            time.sleep(SLEEP_STEP)
+            timer -= SLEEP_STEP
+    else:
+        raise ValueError("TSSB did not start in time")
+
+    # Send enter to accept the 'Disclaimer of Liability' form
+    send_keys('{ENTER}')
+
+    log.debug(f'Accepted disclaimer: {app.windows()} / {app.windows()[0].children()}')
+
+    # Wait for main window to activate
+    timer = TIMEOUT
+    while timer:
+        try:
+            if app.windows(title_re='TSSB.*') and len(app.windows()[0].children()) == 1:
+                break
+        except:
+            pass
+
         time.sleep(SLEEP_STEP)
         timer -= SLEEP_STEP
-else:
-    raise ValueError("TSSB did not start in time")
+    else:
+        log.error("Timeout while waiting for disclaimer window to disappear")
+        raise ValueError("Error accepting disclaimer")
 
-# Send enter to accept the 'Disclaimer of Liability' form
-send_keys('{ENTER}')
+    # Open 'File -> Script file to read'
+    # NOTE: with wine menu select is not working, hence the keystrokes
+    send_keys('{VK_MENU}{ENTER}{ENTER}')
 
-print(f'[DEBUG] Accepted disclaimer: {app.windows()} / {app.windows()[0].children()}')
+    log.debug(f'Open in progress: {app.windows()} / {app.windows()[0].children()}')
 
-# Wait for main window to activate
-timer = TIMEOUT
-while timer:
-    try:
-        if app.windows(title_re = 'TSSB.*') and len(app.windows()[0].children()) == 1:
-            break
-    except:
+    timer = TIMEOUT
+    while timer:
+        try:
+            if len(app.windows(title=u'Script file to read')) > 0:
+                break
+        except:
+            time.sleep(SLEEP_STEP)
+            timer -= SLEEP_STEP
+    else:
+        raise ValueError("Script file to read dialog did not appear")
+
+    log.info(f"Starting script `{script_with_marker}`")
+    send_keys(script_with_marker + '{ENTER}')
+
+    # Wait for processing to start
+    while len(app.windows(title=u'Script file to read')) > 0:
         time.sleep(SLEEP_STEP)
-        timer -= SLEEP_STEP
-else:
-    raise ValueError("Error accepting disclaimer")
 
-print(f'[DEBUG] Opening script: {app.windows()} / {app.windows()[0].children()}')
+    log.debug(f"Waiting to finish: {app.windows()} / {app.windows()[0].children()}")
 
-# Open 'File -> Script file to read'
-# NOTE: with wine menu select is not working, hence the keystrokes
-send_keys('{VK_MENU}{ENTER}{ENTER}')
+    # Wait for processing to finish
+    while True:
+        try:
+            dialogs = str(app.windows()[0].children())
+        except Exception:
+            # Sometimes the window handle goes out of context before we reach children(), hence we ignore that exception
+            continue
 
-print(f'[DEBUG] Open in progress: {app.windows()} / {app.windows()[0].children()}')
-
-timer = TIMEOUT
-while timer:
-    try:
-        if len(app.windows(title=u'Script file to read')) > 0:
+        if MARKER_TEXT in dialogs:
+            log.debug("Success!")
             break
-    except:
-        time.sleep(SLEEP_STEP)
-        timer -= SLEEP_STEP
-else:
-    raise ValueError("Script file to read dialog did not appear")
 
-print(f"[DEBUG] Starting script `{script_with_marker}`: {app.windows()} / {app.windows()[0].children()}")
-send_keys(script_with_marker + '{ENTER}')
+        if 'ButtonWrapper' in dialogs:
+            log.error(f'Error while processing: {dialogs} / {app.windows()} / {app.windows()[0].children()}')
+            raise ValueError(f'Error while processing: {dialogs} / {app.windows()} / {app.windows()[0].children()}')
 
-# Wait for processing to start
-while len(app.windows(title=u'Script file to read')) > 0:
-    time.sleep(SLEEP_STEP)
+        time.sleep(SLEEP_STEP * 2)
 
-print(f"[DEBUG] Waiting to finish: {app.windows()} / {app.windows()[0].children()}")
+    log.info("TSSB Script completed")
 
-# Wait for processing to finish
-while True:
-    # print(f"[DEBUG] {app.windows()} / {app.windows()[0].children()}")
-    try:
-        dialogs = str(app.windows()[0].children())
-    except Exception:
-        # Sometimes the window handle goes out of context before we reach children(), hence we ignore that exception
-        continue
 
-    if MARKER_TEXT in dialogs:
-        print("Success!")
-        break
+if __name__ == '__main__':
+    if len(sys.argv) < 2:
+        print(__doc__)
+        exit(1)
 
-    if 'ButtonWrapper' in dialogs:
-        raise ValueError(f'Error while processing: {dialogs} / {app.windows()} / {app.windows()[0].children()}')
+    tssb_script = sys.argv[1]
+    if not os.path.exists(tssb_script):
+        raise ValueError(f'TSSB Script does not exists: {tssb_script}')
 
-    time.sleep(SLEEP_STEP * 2)
+    log_level = logging.INFO
 
-print("TSSB Script Done")
+    for option in sys.argv[2:]:
+        if option in ('-d', '--debug'):
+            log_level = logging.DEBUG
+
+    logging.basicConfig(
+        level=log_level,
+        format='%(asctime)s [%(levelname)s] %(message)s'
+    )
+    main(tssb_script)

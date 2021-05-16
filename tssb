@@ -22,7 +22,7 @@ docker run \
     --rm \
     -v ${DATA_DIR}:/root/.wine/drive_c/tssb-data/:ro \
     -v ${script_dir}:/root/.wine/drive_c/tssb-scripts/ \
-    ${IMG} c:\\tssb-scripts\\$(basename ${script}) 2>&1 | tee ${script_dir}/tssb-cli.log
+    ${IMG} c:\\tssb-scripts\\$(basename ${script}) --debug 2>&1 | tee ${script_dir}/tssb-cli.log
 
 echo "--->tssb script<---" >> ${result_file}
 cat ${script} >> ${result_file}
