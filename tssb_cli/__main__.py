@@ -4,17 +4,20 @@ Usage:
 
 Options:
   -d  --debug                 Set log level to DEBUG
-  --data-dir=DIR              Sets the data dir to be mounted as c:\\tssb-data [default: /mnt/wd6/tssb-daily-csvs]
+  --data-dir=DIR              Sets the data dir to be mounted as c:\\tssb-data. [default: parse-from-script]
   --docker-img=IMG            Sets the docker image to use [default: registry.kelly.direct/tssb-cli:latest]
   --x11=DISPLAY               Use the defined display as output [default: off]
   --disable-screenshots       Disables the regular screenshots taken from TSSB window
   --parallel-by-var=PROC_CNT  Run the specified script in parallel by dividing the job based on variables [default: off]
 """
-from typing import List, Set, Optional
+from typing import List, Set, Optional, Tuple, Dict, Any
 from os import makedirs
-from os.path import basename, abspath
-from shutil import copy
+from os.path import basename, dirname, abspath
+from copy import copy
+from shutil import copy as copy_file
 from datetime import datetime
+from multiprocessing import Pool
+from functools import partial
 
 import logging
 
@@ -47,17 +50,62 @@ def get_write_targets(script: List[str]) -> Set[str]:
     return write_targets
 
 
-def prepare_workdir(job_name: str, script_path: str, dependencies: Set[str]) -> str:
-    workdir_path = f'job.{job_name}'
+def replace_market_histories_in_script(script: List[str], data_dir: str) -> List[str]:
+    modified_script = copy(script)
+    for i, line in enumerate(script):
+        if line.find("READ MARKET HISTORIES") != -1:
+            splitted = line.split('"')
+            filepath = splitted[1]
+            if filepath.startswith(data_dir):
+                # Already in right format, no need to modify
+                break
+            modified_filepath = f'{data_dir}\\{basename(filepath)}'
+            splitted[1] = modified_filepath
+            modified_line = '"'.join(splitted)
+            modified_script[i] = modified_line
+            break
+    return modified_script
+
+
+def prepare_workdir(job_name: str, script: List[str], script_path: str, data_dir: str,
+                    dependencies: Set[str], parallel_jobs: int, instance: int) -> Tuple[str, str]:
+    tssb_data_win_path = "c:\\tssb-data"
+    workdir_path = f'job.{job_name}.{parallel_jobs}-{instance}'
     log.info(f"Workdir: {workdir_path}")
     makedirs(workdir_path)
 
-    copy(script_path, f'{workdir_path}/{basename(script_path)}')
+    if data_dir == 'parse-from-script':
+        log.info("Finding data dir in script")
+        for line in script:
+            if line.find("READ MARKET HISTORIES") != -1:
+                market_histories_file = line.split('"')[1]
+                if market_histories_file.lower().startswith(tssb_data_win_path):
+                    raise ValueError("Market History is windows path, please specify data-dir")
+                data_dir = dirname(market_histories_file)
+                if not data_dir.startswith('/'):
+                    log.info(f'{script_path}: {abspath(dirname(script_path))}')
+                    data_dir = abspath(dirname(script_path)) + f'/{data_dir}'
+                break
+
+    log.info(f"Data dir set to: {data_dir}")
+
+    modified_script = replace_market_histories_in_script(script, data_dir=tssb_data_win_path)
+
+    script_in_workdir = f'{workdir_path}/{basename(script_path)}'
+    with open(script_in_workdir, 'w') as f:
+        f.writelines(modified_script)
 
     for file in dependencies:
-        copy(file, f'{workdir_path}/{file}')
+        copy_file(file, f'{workdir_path}/{file}')
 
-    return workdir_path
+    if parallel_jobs != 1:
+        var_filename = [e for e in dependencies if e.find('.var') != -1][0]
+
+        shell_run(f'split -n l/{parallel_jobs} -d {workdir_path}/{var_filename} {workdir_path}/VAR', echo=True, check=True)
+        shell_run(f'rm {workdir_path}/{var_filename}', echo=True, check=True)
+        shell_run(f'mv {workdir_path}/VAR{instance:02} {workdir_path}/{var_filename}', echo=True, check=True)
+
+    return workdir_path, data_dir
 
 
 def run(workdir_path: str, script_filename: str, data_dir: str, docker_img: str, job_name: str, description: str,
@@ -79,7 +127,6 @@ def run(workdir_path: str, script_filename: str, data_dir: str, docker_img: str,
     cmd = (
         f'(time docker run '
         f'  -it --rm  '
-        f'  --network=host '
         f'  {x11_args} '
         f'  {disable_screenshot_args} '
         f'  -v {abspath(data_dir)}:/root/.wine/drive_c/tssb-data:ro '
@@ -93,6 +140,28 @@ def run(workdir_path: str, script_filename: str, data_dir: str, docker_img: str,
     shell_run(f'echo "Finish: $(date)" >> {log_filename}')
 
 
+def prepare_and_run(opts: Dict[str, Any], script: List[str], dependencies: List[str],
+                    parallel_jobs: int, instance: int):
+    script_path = opts['<script>']
+    script_filename = basename(script_path)
+
+    now = datetime.now().strftime('%y%m%d_%H%M%S')
+    job_name = f'{now}-{opts["<job_name>"]}'
+
+    x11_display = None
+    if opts['--x11'] != 'off':
+        x11_display = opts['--x11']
+
+    workdir_path, data_dir = prepare_workdir(job_name, script, script_path, opts['--data-dir'],
+                                             dependencies, parallel_jobs, instance)
+    run(workdir_path, script_filename,
+        data_dir, opts['--docker-img'],
+        job_name, opts['<description>'],
+        x11_display, opts['--disable-screenshots'])
+
+    return workdir_path
+
+
 def main():
     opts = docopt(__doc__)
     print(opts)
@@ -100,27 +169,19 @@ def main():
     if opts['-d']:
         log.setLevel(logging.DEBUG)
 
-    x11_display = None
-    if opts['--x11'] != 'off':
-        x11_display = opts['--x11']
-
     script_path = opts['<script>']
 
     with open(script_path) as f:
         script = f.readlines()
 
-    now = datetime.now().strftime('%y%m%d_%H%M%S')
-    job_name = f'{now}-{opts["<job_name>"]}'
     dependencies = get_dependencies(script)
-    _ = get_write_targets(script)
+    # _ = get_write_targets(script)
 
-    workdir_path = prepare_workdir(job_name, script_path, dependencies)
-    script_filename = basename(script_path)
-    run(workdir_path, script_filename,
-        opts['--data-dir'], opts['--docker-img'],
-        job_name, opts['<description>'],
-        x11_display, opts['--disable-screenshots'])
-    log.info(f'TSSB Results: {workdir_path}')
+    parallel_jobs = 1
+    with Pool(processes=parallel_jobs) as pool:
+        workdirs = pool.map(partial(prepare_and_run, opts, script, dependencies, parallel_jobs), range(parallel_jobs))
+
+    log.info(f'TSSB Results: {workdirs}')
 
 
 if __name__ == '__main__':
