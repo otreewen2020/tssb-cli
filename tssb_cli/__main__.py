@@ -18,6 +18,8 @@ from shutil import copy as copy_file
 from datetime import datetime
 from multiprocessing import Pool
 from functools import partial
+import json
+import sys
 
 import logging
 
@@ -181,11 +183,12 @@ def main():
     with Pool(processes=parallel_jobs) as pool:
         workdirs = pool.map(partial(prepare_and_run, opts, script, dependencies, parallel_jobs), range(parallel_jobs))
 
-    log.info(f'TSSB Results: {workdirs}')
+    log.info(f'TSSB Results: {json.dumps(workdirs)}')
 
 
 if __name__ == '__main__':
     logging.basicConfig(
+        stream=sys.stdout,
         level=logging.INFO,
         format='%(asctime)s [%(levelname)s] %(message)s'
     )
