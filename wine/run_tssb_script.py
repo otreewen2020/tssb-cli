@@ -103,6 +103,7 @@ def main(tssb_script):
     log.debug(f"Waiting to finish: {app.windows()} / {app.windows()[0].children()}")
 
     # Wait for processing to finish
+    error_dialogs_found = 0
     while True:
         try:
             dialogs = str(app.windows()[0].children())
@@ -111,12 +112,17 @@ def main(tssb_script):
             continue
 
         if MARKER_TEXT in dialogs:
+            error_dialogs_found = 0
             log.debug("Success!")
             break
 
         if 'ButtonWrapper' in dialogs:
-            log.error(f'Error while processing: {dialogs} / {app.windows()} / {app.windows()[0].children()}')
-            raise ValueError(f'Error while processing: {dialogs} / {app.windows()} / {app.windows()[0].children()}')
+            # It could happen that we load the dialog during it is filled, thus the MARKER_TEXT is not yet visible.
+            # Doing a double-check (hopefully) resolves the problem.
+            error_dialogs_found += 1
+            if error_dialogs_found == 2:
+                log.error(f'Error while processing: {dialogs} / {app.windows()} / {app.windows()[0].children()}')
+                raise ValueError(f'Error while processing: {dialogs} / {app.windows()} / {app.windows()[0].children()}')
 
         time.sleep(SLEEP_STEP * 2)
 
