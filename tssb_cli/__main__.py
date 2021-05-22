@@ -127,13 +127,14 @@ def run(workdir_path: str, script_filename: str, data_dir: str, docker_img: str,
         disable_screenshot_args = ' -e SCREENSHOTS="" '
 
     cmd = (
+        f'set -o pipefail; '
         f'(time docker run '
         f'  -it --rm  '
         f'  {x11_args} '
         f'  {disable_screenshot_args} '
         f'  -v {abspath(data_dir)}:/root/.wine/drive_c/tssb-data:ro '
         f'  -v {abspath(workdir_path)}:/root/.wine/drive_c/tssb-workdir '
-        f'  {docker_img} c:\\\\tssb-workdir\\\\{script_filename} ) | tee -a {log_filename} 2>&1  '
+        f'  {docker_img} c:\\\\tssb-workdir\\\\{script_filename} ) | tee -a {log_filename} 2>&1 '
     )
 
     log.info(f'Starting tssb: {cmd}')
