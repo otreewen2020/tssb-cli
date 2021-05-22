@@ -143,7 +143,7 @@ def run(workdir_path: str, script_filename: str, data_dir: str, docker_img: str,
     shell_run(f'echo "Finish: $(date)" >> {log_filename}')
 
 
-def prepare_and_run(opts: Dict[str, Any], script: List[str], dependencies: List[str],
+def prepare_and_run(opts: Dict[str, Any], script: List[str], dependencies: Set[str],
                     parallel_jobs: int, instance: int):
     script_path = opts['<script>']
     script_filename = basename(script_path)
