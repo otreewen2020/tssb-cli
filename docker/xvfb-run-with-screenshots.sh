@@ -96,8 +96,10 @@ clean_up() {
         kill "$XVFBPID" >>"$ERRORFILE" 2>&1
     fi
 
-    if [ ! -z "${SCREENSHOTS}" ]; then
-      kill %1
+    if [ -n "${SCREENSHOTS_PID}" ]; then
+      CPIDS=`pgrep -P ${SCREENSHOTS_PID}`
+      kill -9 ${SCREENSHOTS_PID}
+      for cpid in $CPIDS ; do kill -9 $cpid ; done
     fi
 }
 
@@ -202,8 +204,10 @@ EOF
     exit 1
 done
 
+SCREENSHOTS_PID=""
 if [ ! -z "${SCREENSHOTS}" ]; then
   take_screenshots &
+  SCREENSHOTS_PID=$!
 fi
 
 # Start the command and save its exit status.

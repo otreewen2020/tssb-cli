@@ -9,6 +9,9 @@ Options:
   --x11=DISPLAY               Use the defined display as output [default: off]
   --disable-screenshots       Disables the regular screenshots taken from TSSB window
   --parallel-by-var=PROC_CNT  Run the specified script in parallel by dividing the job based on variables [default: off]
+  --run-normal                Run without starting docker containers. 
+                              This option is useful when tssb is already running inside a docker container (e.g. k8s setup). 
+                              Warning: re-links files under wine's `drive_c`
 """
 from typing import List, Set, Optional, Tuple, Dict, Any
 from os import makedirs
@@ -20,6 +23,7 @@ from multiprocessing import Pool
 from functools import partial
 import json
 import sys
+import os
 
 import logging
 
@@ -88,6 +92,7 @@ def prepare_workdir(job_name: str, script: List[str], script_path: str, data_dir
                     log.info(f'{script_path}: {abspath(dirname(script_path))}')
                     data_dir = abspath(dirname(script_path)) + f'/{data_dir}'
                 break
+        raise ValueError("data-dir not found")
 
     log.info(f"Data dir set to: {data_dir}")
 
@@ -103,15 +108,56 @@ def prepare_workdir(job_name: str, script: List[str], script_path: str, data_dir
     if parallel_jobs != 1:
         var_filename = [e for e in dependencies if e.find('.var') != -1][0]
 
-        shell_run(f'split -n l/{parallel_jobs} -d {workdir_path}/{var_filename} {workdir_path}/VAR', echo=True, check=True)
+        shell_run(f'split -n l/{parallel_jobs} -d {workdir_path}/{var_filename} {workdir_path}/VAR',
+                  echo=True, check=True)
         shell_run(f'rm {workdir_path}/{var_filename}', echo=True, check=True)
         shell_run(f'mv {workdir_path}/VAR{instance:02} {workdir_path}/{var_filename}', echo=True, check=True)
 
     return workdir_path, data_dir
 
 
-def run(workdir_path: str, script_filename: str, data_dir: str, docker_img: str, job_name: str, description: str,
-        x11_display: Optional[str], disable_screenshots: bool):
+def run_normal(workdir_path: str, script_filename: str, data_dir: str, docker_img: str,
+              job_name: str, description: str,
+              x11_display: Optional[str], disable_screenshots: bool):
+    log_filename = f'{workdir_path}/tssb-cli.log'
+    shell_run(f'echo "{job_name}: {description}\nStart: $(date)" >> {log_filename}')
+    x11_args = ''
+    start_cmd = '/xvfb-run-with-screenshots.sh wine'
+    if x11_display:
+        x11_args = (
+            f'export DISPLAY={x11_display}; '
+            f'export NO_XVFB=true; '
+        )
+        start_cmd = 'wine'
+
+    disable_screenshot_args = ''
+    if disable_screenshots:
+        disable_screenshot_args = 'export SCREENSHOTS="";'
+
+    link_tssb_data = f'ln -sf {abspath(data_dir)} $HOME/.wine/drive_c/tssb-data; '
+    link_tssb_workdir = f'ln -sf {abspath(workdir_path)} $HOME/.wine/drive_c/tssb-workdir; '
+
+    cmd = (
+        f'set -o pipefail; '
+        f'{x11_args} '
+        f'{disable_screenshot_args} '
+        f'{link_tssb_data} '
+        f'{link_tssb_workdir} '
+        f'(time {start_cmd} C:\\\\Python38\\\\python.exe C:\\\\tssb\\\\run_tssb_script.py c:\\\\tssb-workdir\\\\{script_filename} ) > >(tee -a {log_filename}) 2>&1 '
+    )
+
+    log.info(f'Starting tssb: {cmd}')
+    # NOTE: 'executable' kwarg of shell_run is not respected
+    os.environ['SHELL'] = '/bin/bash'
+    shell_run(cmd, echo=True, check=True, shell=True)
+
+    shell_run(f'echo "Finish: $(date)" >> {log_filename}')
+    pass
+
+
+def run_docker(workdir_path: str, script_filename: str, data_dir: str, docker_img: str,
+               job_name: str, description: str,
+               x11_display: Optional[str], disable_screenshots: bool):
     log_filename = f'{workdir_path}/tssb-cli.log'
     shell_run(f'echo "{job_name}: {description}\nStart: $(date)" >> {log_filename}')
     x11_args = ''
@@ -157,10 +203,19 @@ def prepare_and_run(opts: Dict[str, Any], script: List[str], dependencies: Set[s
 
     workdir_path, data_dir = prepare_workdir(job_name, script, script_path, opts['--data-dir'],
                                              dependencies, parallel_jobs, instance)
-    run(workdir_path, script_filename,
-        data_dir, opts['--docker-img'],
-        job_name, opts['<description>'],
-        x11_display, opts['--disable-screenshots'])
+
+    if opts['--run-normal']:
+        run_normal(
+            workdir_path, script_filename,
+            data_dir, opts['--docker-img'],
+            job_name, opts['<description>'],
+            x11_display, opts['--disable-screenshots'])
+    else:
+        run_docker(
+            workdir_path, script_filename,
+            data_dir, opts['--docker-img'],
+            job_name, opts['<description>'],
+            x11_display, opts['--disable-screenshots'])
 
     return workdir_path
 
