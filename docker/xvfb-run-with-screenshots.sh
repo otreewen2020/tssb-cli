@@ -101,6 +101,7 @@ clean_up() {
       kill -9 ${SCREENSHOTS_PID}
       for cpid in $CPIDS ; do kill -9 $cpid ; done
     fi
+    echo "$(date) Cleanup complete"
 }
 
 take_screenshots() {

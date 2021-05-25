@@ -21,25 +21,30 @@ from pywinauto.keyboard import send_keys
 
 log = logging.getLogger(__name__)
 
-TSSB_CLI_TEMP = "C:\\t"
+# Keeping the path short speeds up execution: we are sending in less keystrokes
+TSSB_WORKDIR = "c:\\t"
 
 SLEEP_STEP = 0.05
 TIMEOUT = 60
+MARKER_TEXT = "TSSB_CLI_END_MARKER"
 
 
 def main(tssb_script):
-    os.chdir(dirname(tssb_script))
+    if not tssb_script.startswith(TSSB_WORKDIR):
+        raise ValueError(f"Script should be under {TSSB_WORKDIR}")
 
-    # Copy over the script to \temp and add finish marker
-    MARKER_TEXT="TSSB_CLI_END_MARKER"
-    # Keeping the path short speeds up execution: we are sending in less keystrokes
-    script_with_marker = f'{TSSB_CLI_TEMP}\\s.scr'
-    os.mkdir(TSSB_CLI_TEMP)
+    script_with_marker = f'{TSSB_WORKDIR}\\s.scr'
+    if tssb_script == script_with_marker:
+        raise ValueError(f"Conflict: cannot use {tssb_script} as path")
+
+    # Copy over the script to temp file and add finish marker
     with open(script_with_marker, 'w') as f_out:
         with open(tssb_script, 'r') as f_in:
             for line in f_in:
                 f_out.write(line)
         f_out.write(f'\n\nREAD {MARKER_TEXT};\n')
+
+    os.chdir(TSSB_WORKDIR)
 
     app = Application(backend="win32").start('C:\\tssb\\tssb.exe')
 

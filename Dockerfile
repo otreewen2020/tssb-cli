@@ -4,13 +4,13 @@ ENV SCREENSHOTS="/root/.wine/drive_c/tssb-workdir/"
 ENV SCREENSHOTS_DELAY="1800"
 ENV SCREENSHOTS_INITIAL_DELAY="600"
 
-RUN apt update && \
-    apt install -y --no-install-recommends \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
       python3-pip \
       scrot && \
     rm -rf /var/lib/apt/lists/*
     
-ADD docker/entrypoint.sh docker/xvfb-run-with-screenshots.sh /
+ADD docker/xvfb-run-with-screenshots.sh /
 ADD wine/run_tssb_script.py /root/.wine/drive_c/tssb/
 
 ADD setup.py /src/
@@ -18,7 +18,8 @@ ADD build_cli.sh /src/
 ADD tssb_cli /src/tssb_cli
 RUN \
   cd /src/ && \
+  mkdir bin && \
   ./build_cli.sh && \
-  mv tssb /usr/bin/tssb
+  mv bin/tssb_cli /usr/bin/tssb_cli
 
-ENTRYPOINT [ "/entrypoint.sh" ]
+ENTRYPOINT [ "/usr/bin/tssb_cli" ]

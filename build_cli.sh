@@ -14,4 +14,4 @@ rm -rf tssb_cli_build/bin tssb_cli_build/*.dist-info tssb_cli_build/__pycache__
 ${INTERPRETER} -m zipapp -p "/usr/bin/env ${INTERPRETER}" tssb_cli_build
 
 rm -rf tssb_cli_build
-mv tssb_cli_build.pyz tssb
+mv tssb_cli_build.pyz bin/tssb_cli
