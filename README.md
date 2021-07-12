@@ -89,7 +89,7 @@ Given that python installer requires X/UI running, majority of the installation 
          --rm \
          --network=host \
          -it \
-         -v /mnt/wd6/tssb-daily-csvs:/root/.wine/drive_c/tssb-data/:ro \
+         -v /home/tssb-user/tssb-daily-csvs:/root/.wine/drive_c/tssb-data/:ro \
          -v /home/tssb-user/tssb-scripts:/root/.wine/drive_c/tssb-scripts/ \
          my-registry/tssb:latest c:\\tssb-scripts\\find_groups.scr
        ```
@@ -103,7 +103,7 @@ Given that python installer requires X/UI running, majority of the installation 
          -e NO_XVFB=true \
          -v "${XAUTHORITY:-${HOME}/.Xauthority}:/root/.Xauthority:ro" \
          -v "/tmp/.X11-unix:/tmp/.X11-unix:ro" \
-         -v /mnt/wd6/tssb-daily-csvs:/root/.wine/drive_c/tssb-data/:ro \
+         -v /home/tssb-user/tssb-daily-csvs:/root/.wine/drive_c/tssb-data/:ro \
          -v /home/tssb-user/tssb-scripts/:/root/.wine/drive_c/tssb-scripts/ \
          my-registry/tssb:latest c:\\tssb-scripts\\find_groups.scr
        ```
