@@ -1,5 +1,5 @@
 # tssb-cli
-Welcome to hell: run TSSB from CLI, using WINE, Docker and PyWinAuto
+Welcome to the unofficial tssb-cli, which leverages WINE, Docker and PyWinAuto to run [TSSB](https://tssbsoftware.com) on Linux and OS X.
 
 ## Tutorial
 Given that python installer requires X/UI running, majority of the installation process is done manually:
@@ -67,20 +67,20 @@ Given that python installer requires X/UI running, majority of the installation 
 
   7. Snapshot and upload image (from host):
      ```
-     docker commit tssb-install registry.kelly.direct/tssb-cli:base-1.94
-     docker push registry.kelly.direct/tssb-cli:base-1.94
+     docker commit tssb-install my-registry/tssb-cli:base-1.94
+     docker push my-registry/tssb-cli:base-1.94
      ```
 
   8. Build TSSB image:
      ```
-     docker build -t registry.kelly.direct/tssb-cli:latest .
-     docker tag registry.kelly.direct/tssb-cli:latest registry.kelly.direct/tssb-cli:1.94
+     docker build -t my-registry/tssb-cli:latest .
+     docker tag my-registry/tssb-cli:latest my-registry/tssb-cli:1.94
      ```
 
   9. Run:
      - Using the shell script:
        ```
-       ./tssb.sh /home/tiborkiss/src/tssb-sandbox/scripts/bjorn/find_groups.scr
+       ./tssb.sh /home/tssb-user/tssb-scripts/find_groups.scr
        ```
 
      - Standalone using docker:
@@ -90,8 +90,8 @@ Given that python installer requires X/UI running, majority of the installation 
          --network=host \
          -it \
          -v /mnt/wd6/tssb-daily-csvs:/root/.wine/drive_c/tssb-data/:ro \
-         -v /home/tiborkiss/src/tssb-sandbox/scripts/bjorn:/root/.wine/drive_c/tssb-scripts/ \
-         registry.kelly.direct/tssb:latest c:\\tssb-scripts\\find_groups.scr
+         -v /home/tssb-user/tssb-scripts:/root/.wine/drive_c/tssb-scripts/ \
+         my-registry/tssb:latest c:\\tssb-scripts\\find_groups.scr
        ```
     
      - With X11 Forwarding:
@@ -104,7 +104,7 @@ Given that python installer requires X/UI running, majority of the installation 
          -v "${XAUTHORITY:-${HOME}/.Xauthority}:/root/.Xauthority:ro" \
          -v "/tmp/.X11-unix:/tmp/.X11-unix:ro" \
          -v /mnt/wd6/tssb-daily-csvs:/root/.wine/drive_c/tssb-data/:ro \
-         -v /home/tiborkiss/src/tssb-sandbox/scripts/bjorn:/root/.wine/drive_c/tssb-scripts/ \
-         registry.kelly.direct/tssb:latest c:\\tssb-scripts\\find_groups.scr
+         -v /home/tssb-user/tssb-scripts/:/root/.wine/drive_c/tssb-scripts/ \
+         my-registry/tssb:latest c:\\tssb-scripts\\find_groups.scr
        ```
 
