@@ -1,4 +1,4 @@
-FROM registry.kelly.direct/tssb-cli:base-1.94
+FROM my-registry/tssb-cli:base-1.94
 
 ENV SCREENSHOTS="/root/.wine/drive_c/t/"
 ENV SCREENSHOTS_DELAY="1800"
